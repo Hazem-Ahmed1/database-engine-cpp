@@ -1,0 +1,45 @@
+2
+TABLE
+products
+2
+id
+0 0 1 0
+name
+2 50 0 1
+2
+2
+1
+Apple
+2
+2
+Banana
+TABLE
+users
+3
+id
+0 0 1 0
+name
+2 50 0 1
+age
+0 0 0 0
+5
+3
+1
+John
+25
+3
+2
+John
+25
+3
+3
+John
+25
+3
+4
+John
+25
+3
+5
+John
+25
