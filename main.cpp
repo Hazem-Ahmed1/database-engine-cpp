@@ -67,7 +67,7 @@ void printHelp() {
     cout << "  SELECT * FROM table_name [WHERE condition]" << endl;
     cout << "  SELECT col1, col2 FROM table_name [WHERE condition]" << endl;
     cout << "  UPDATE table_name SET col1=val1, col2=val2 [WHERE condition]" << endl;
-    cout << "  DELETE * FROM table_name" << endl;
+    cout << "  DELETE FROM table_name" << endl;
     cout << "  DELETE FROM table_name WHERE condition" << endl;
     cout << "  LIST TABLES" << endl;
     cout << "  HELP" << endl;
