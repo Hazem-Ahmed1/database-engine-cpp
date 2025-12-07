@@ -76,6 +76,8 @@ void printHelp() {
     cout << "Supported operators in WHERE: =, !=, <, >, <=, >=" << endl;
 }
 
+// ================== MAIN ==================
+
 int main() {
     DatabaseEngine db;
 
@@ -89,6 +91,7 @@ int main() {
     // load master database if file exists
     db.loadFromDisk(getDatabaseFile(currentDatabase));
 
+    printHelp();
     cout << "\nExamples:" << endl;
     cout << "  CREATE DATABASE shop" << endl;
     cout << "  USE shop" << endl;
@@ -98,91 +101,123 @@ int main() {
     cout << "  DELETE FROM users WHERE age < 30" << endl;
     cout << endl;
 
-    string query;
+    string line;
+    bool shouldExit = false;
 
-    while (true) {
+    while (!shouldExit) {
         cout << "dbms[" << currentDatabase << "]> ";
-        getline(cin, query);
+        getline(cin, line);
 
-        if (query.empty()) continue;
+        if (line.empty()) continue;
 
-        string upperQuery = query;
-        transform(upperQuery.begin(), upperQuery.end(), upperQuery.begin(), ::toupper);
+        // -------- split input line into commands by ';' --------
+        vector<string> commands;
+        string temp;
 
-        if (upperQuery == "EXIT" || upperQuery == "QUIT") {
-            db.saveToDisk(getDatabaseFile(currentDatabase));
-            cout << "Goodbye!" << endl;
-            break;
-        }
-        else if (upperQuery.find("CREATE DATABASE") == 0) {
-            string dbName = query.substr(15);      // after "CREATE DATABASE"
-            dbName = trimString(dbName);
-
-            if (dbName.empty()) {
-                cout << "Error: Database name is required." << endl;
+        for (size_t i = 0; i < line.size(); ++i) {
+            char c = line[i];
+            if (c == ';') {
+                string cmd = trimString(temp);
+                if (!cmd.empty()) commands.push_back(cmd);
+                temp.clear();
             }
             else {
-                string folder = getDatabaseFolder(dbName);
-                if (directoryExists(folder)) {
-                    cout << "Error: Database '" << dbName << "' already exists." << endl;
-                }
-                else {
-                    createDirectoryIfNotExists(folder);
-                    cout << "Database '" << dbName << "' created in folder '" << folder << "'." << endl;
-                }
+                temp += c;
             }
         }
-        else if (upperQuery.find("USE ") == 0) {
-            string dbName = query.substr(4);       // after "USE "
-            dbName = trimString(dbName);
+        // last part (no trailing ;)
+        temp = trimString(temp);
+        if (!temp.empty()) commands.push_back(temp);
 
-            if (dbName.empty()) {
-                cout << "Error: Database name is required." << endl;
+        if (commands.empty()) continue;
+
+        // -------- process each command separately --------
+        for (size_t ci = 0; ci < commands.size(); ++ci) {
+            string query = commands[ci];
+
+            // build uppercase version for matching
+            string upperQuery = query;
+            transform(upperQuery.begin(), upperQuery.end(),
+                upperQuery.begin(), ::toupper);
+
+            if (upperQuery == "EXIT" || upperQuery == "QUIT") {
+                db.saveToDisk(getDatabaseFile(currentDatabase));
+                cout << "Goodbye!" << endl;
+                shouldExit = true;
+                break; // break command loop
+            }
+            else if (upperQuery.find("CREATE DATABASE") == 0) {
+                string dbName = query.substr(15);      // after "CREATE DATABASE"
+                dbName = trimString(dbName);
+
+                if (dbName.empty()) {
+                    cout << "Error: Database name is required." << endl;
+                }
+                else {
+                    string folder = getDatabaseFolder(dbName);
+                    if (directoryExists(folder)) {
+                        cout << "Error: Database '" << dbName << "' already exists." << endl;
+                    }
+                    else {
+                        createDirectoryIfNotExists(folder);
+                        cout << "Database '" << dbName
+                            << "' created in folder '" << folder << "'." << endl;
+                    }
+                }
+            }
+            else if (upperQuery.find("USE ") == 0) {
+                string dbName = query.substr(4);       // after "USE "
+                dbName = trimString(dbName);
+
+                if (dbName.empty()) {
+                    cout << "Error: Database name is required." << endl;
+                }
+                else {
+                    string folder = getDatabaseFolder(dbName);
+                    if (!directoryExists(folder)) {
+                        cout << "Error: Database '" << dbName << "' does not exist." << endl;
+                    }
+                    else {
+                        // save current DB before switching
+                        db.saveToDisk(getDatabaseFile(currentDatabase));
+                        currentDatabase = dbName;
+                        db.loadFromDisk(getDatabaseFile(currentDatabase));
+                        cout << "Switched to database '" << currentDatabase << "'." << endl;
+                    }
+                }
+            }
+            else if (upperQuery == "LIST TABLES") {
+                db.listTables();
+            }
+            else if (upperQuery.find("CREATE TABLE") == 0) {
+                db.createTable(query);
+                db.saveToDisk(getDatabaseFile(currentDatabase));
+            }
+            else if (upperQuery.find("INSERT INTO") == 0) {
+                db.insertInto(query);
+                db.saveToDisk(getDatabaseFile(currentDatabase));
+            }
+            else if (upperQuery.find("SELECT") == 0) {
+                db.selectFrom(query);
+            }
+            else if (upperQuery.find("UPDATE") == 0) {
+                db.updateTable(query);
+                db.saveToDisk(getDatabaseFile(currentDatabase));
+            }
+            else if (upperQuery.find("DELETE") == 0) {
+                db.deleteFrom(query);
+                db.saveToDisk(getDatabaseFile(currentDatabase));
+            }
+            else if (upperQuery == "HELP") {
+                printHelp();
             }
             else {
-                string folder = getDatabaseFolder(dbName);
-                if (!directoryExists(folder)) {
-                    cout << "Error: Database '" << dbName << "' does not exist." << endl;
-                }
-                else {
-                    db.saveToDisk(getDatabaseFile(currentDatabase));
-
-                    currentDatabase = dbName;
-                    db.loadFromDisk(getDatabaseFile(currentDatabase));
-                    cout << "Switched to database '" << currentDatabase << "'." << endl;
-                }
+                cout << "Unknown command: " << query
+                    << "\nType 'HELP' for a list of commands or 'EXIT' to quit." << endl;
             }
-        }
-        else if (upperQuery == "LIST TABLES") {
-            db.listTables();
-        }
-        else if (upperQuery.find("CREATE TABLE") == 0) {
-            db.createTable(query);
-            db.saveToDisk(getDatabaseFile(currentDatabase));
-        }
-        else if (upperQuery.find("INSERT INTO") == 0) {
-            db.insertInto(query);
-            db.saveToDisk(getDatabaseFile(currentDatabase));
-        }
-        else if (upperQuery.find("SELECT") == 0) {
-            db.selectFrom(query);
-        }
-        else if (upperQuery.find("UPDATE") == 0) {
-            db.updateTable(query);
-            db.saveToDisk(getDatabaseFile(currentDatabase));
-        }
-        else if (upperQuery.find("DELETE") == 0) {
-            db.deleteFrom(query);
-            db.saveToDisk(getDatabaseFile(currentDatabase));
-        }
-        else if (upperQuery == "HELP") {
-            printHelp();
-        }
-        else {
-            cout << "Unknown command. Type 'HELP' for a list of commands or 'EXIT' to quit." << endl;
-        }
 
-        cout << endl;
+            cout << endl;
+        }
     }
 
     return 0;

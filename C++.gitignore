@@ -2,6 +2,8 @@
 *.d
 .vs/
 *.vsidx
+x64/
+Debug/
 
 # Compiled Object files
 *.slo
