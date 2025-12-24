@@ -53,15 +53,15 @@ g++ -std=c++17 main.cpp -o dbms
 
 ## 📝 Example Queries
 
-CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50) NOT NULL, age INT)
-INSERT INTO users VALUES (1, John, 25)
-INSERT INTO users VALUES (2, Sarah, 30)
-SELECT _ FROM users
-SELECT name, age FROM users WHERE age > 25
-UPDATE users SET age = 26 WHERE id = 1
-DELETE FROM users WHERE age < 30 AND name="Sarah"
-DELETE _ FROM users
-LIST TABLES
+-  CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50) NOT NULL, age INT)
+-  INSERT INTO users VALUES (1, John, 25)
+-  INSERT INTO users VALUES (2, Sarah, 30)
+-  SELECT _ FROM users
+-  SELECT name, age FROM users WHERE age > 25
+-  UPDATE users SET age = 26 WHERE id = 1
+-  DELETE FROM users WHERE age < 30 AND name="Sarah"
+-  DELETE _ FROM users
+-  LIST TABLES
 
 ## 🧩 Project Architecture Overview
 
@@ -75,4 +75,5 @@ DatabaseEngine -> QueryParser -> Table -> (Columns, Rows) -> Condition/Row
 - Constraints handling
 - In-memory storage
 - Error handling
+
 
