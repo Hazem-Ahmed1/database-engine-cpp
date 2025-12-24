@@ -187,9 +187,11 @@ void DatabaseEngine::selectFrom(const string& query) {
                 vector<int> colIndices;
                 for (int i = 0; i < (int)columns.size(); i++) {
                     int idx = table->getColumnIndex(columns[i]);
-                    if (idx != -1) {
-                        colIndices.push_back(idx);
+                    if (idx == -1) {
+                        cout << "Error: Column '" << columns[i] << "' does not exist!" << endl;
+                        return;
                     }
+                    colIndices.push_back(idx);
                 }
                 table->displayData(colIndices);
             }
@@ -211,7 +213,11 @@ void DatabaseEngine::selectFrom(const string& query) {
         else {
             for (int i = 0; i < (int)columns.size(); i++) {
                 int idx = table->getColumnIndex(columns[i]);
-                if (idx != -1) displayCols.push_back(idx);
+                if (idx == -1) {
+                    cout << "Error: Column '" << columns[i] << "' does not exist!" << endl;
+                    return;
+                }
+                displayCols.push_back(idx);
             }
         }
 
@@ -339,6 +345,26 @@ void DatabaseEngine::updateTable(const string& query) {
         cout << "[" << updatedCount << "] Row(s) updated in '"
             << tableName << "'!" << endl;
 
+    }
+    catch (exception& e) {
+        cout << "Error: " << e.what() << endl;
+    }
+}
+
+void DatabaseEngine::dropTable(const string& query) {
+    try {
+        string tableName = QueryParser::parseDropTable(query);
+
+        if (tables.find(tableName) == tables.end()) {
+            cout << "Error: Table '" << tableName << "' does not exist!" << endl;
+            return;
+        }
+
+        delete tables[tableName];
+        
+        tables.erase(tableName);
+
+        cout << "Table '" << tableName << "' dropped successfully!" << endl;
     }
     catch (exception& e) {
         cout << "Error: " << e.what() << endl;

@@ -38,6 +38,8 @@ public:
         string& tableName,
         map<string, string>& updates,
         vector<Condition>& conditions);
+
+    static string parseDropTable(const string& query);
 };
 
 #endif

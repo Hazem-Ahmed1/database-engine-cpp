@@ -48,6 +48,7 @@ DataType QueryParser::parseDataType(const string& typeStr, int& size) {
         return VARCHAR;
     }
 
+
     throw runtime_error("Unknown data type: " + typeStr);
 }
 
@@ -74,6 +75,7 @@ Table* QueryParser::parseCreateTable(const string& query) {
 
     stringstream ss(columnDefs);
     string columnDef;
+    int pkCount = 0;
 
     while (getline(ss, columnDef, ',')) {
         columnDef = trim(columnDef);
@@ -91,6 +93,14 @@ Table* QueryParser::parseCreateTable(const string& query) {
         // Check for constraints
         bool isPK = (upperDef.find("PRIMARY KEY") != string::npos);
         bool isNN = (upperDef.find("NOT NULL") != string::npos);
+
+        if (isPK) {
+            pkCount++;
+            if (pkCount > 1) {
+                delete table;
+                throw runtime_error("Table can have only one PRIMARY KEY");
+            }
+        }
 
         int size;
         DataType type = parseDataType(colType, size);
@@ -289,4 +299,27 @@ void QueryParser::parseWhereClause(const string& whereStr,
             conditions.push_back(Condition(col, op, val));
         }
     }
+}
+
+string QueryParser::parseDropTable(const string& query) {
+    string upperQuery = toUpper(query);
+    size_t tablePos = upperQuery.find("TABLE");
+
+    if (tablePos == string::npos) {
+        throw runtime_error("DROP TABLE syntax error");
+    }
+
+    string tableName = trim(query.substr(tablePos + 5)); // after "TABLE"
+    
+    // Remove trailing semicolon if present (though main loop handles splitting by ;)
+    if (!tableName.empty() && tableName[tableName.length() - 1] == ';') {
+        tableName = tableName.substr(0, tableName.length() - 1);
+    }
+    tableName = trim(tableName);
+
+    if (tableName.empty()) {
+        throw runtime_error("Table name missing in DROP TABLE command");
+    }
+
+    return tableName;
 }

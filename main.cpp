@@ -6,20 +6,18 @@
 #include <map>
 #include <algorithm>
 #include <cctype>
-
 #include "Column.h"
 #include "Row.h"
 #include "Table.h"
 #include "Condition.h"
 #include "QueryParser.h"
 #include "DatabaseEngine.h"
-
 #include <sys/stat.h>
-#include <direct.h>   // _mkdir
+#include <direct.h>  
+#include <io.h>  
 
 using namespace std;
 
-// ================== DB FOLDER HELPERS ==================
 
 const string BASE_DB_FOLDER = "databases";
 
@@ -56,11 +54,36 @@ string getDatabaseFile(const string& dbName) {
     return getDatabaseFolder(dbName) + "\\database.db";
 }
 
+void listDatabases() {
+    string searchPath = BASE_DB_FOLDER + "\\*.*";
+    struct _finddata_t fileinfo;
+    intptr_t handle = _findfirst(searchPath.c_str(), &fileinfo);
+
+    if (handle == -1) {
+        cout << "No databases found (or error accessing folder)." << endl;
+        return;
+    }
+
+    cout << "Databases:" << endl;
+    do {
+        if (fileinfo.attrib & _A_SUBDIR) {
+            string name = fileinfo.name;
+            if (name != "." && name != "..") {
+                cout << "  - " << name << endl;
+            }
+        }
+    } while (_findnext(handle, &fileinfo) == 0);
+
+    _findclose(handle);
+}
+
 // ================== HELP TEXT ==================
 
 void printHelp() {
     cout << "\nSupported commands:" << endl;
     cout << "  CREATE DATABASE db_name" << endl;
+    cout << "  LIST DATABASES" << endl;
+    cout << "  DROP DATABASE db_name" << endl;
     cout << "  USE db_name" << endl;
     cout << "  CREATE TABLE table_name (col1 type1 [PRIMARY KEY] [NOT NULL], ...)" << endl;
     cout << "  INSERT INTO table_name VALUES (val1, val2, ...)" << endl;
@@ -69,6 +92,9 @@ void printHelp() {
     cout << "  UPDATE table_name SET col1=val1, col2=val2 [WHERE condition]" << endl;
     cout << "  DELETE * FROM table_name" << endl;
     cout << "  DELETE FROM table_name WHERE condition" << endl;
+    cout << "  DROP TABLE table_name" << endl;
+    cout << "  DROP database db_name" << endl;
+    cout << "  LIST DATABASES" << endl;
     cout << "  LIST TABLES" << endl;
     cout << "  HELP" << endl;
     cout << "  EXIT" << endl;
@@ -91,7 +117,7 @@ int main() {
     // load master database if file exists
     db.loadFromDisk(getDatabaseFile(currentDatabase));
 
-    printHelp();
+    // printHelp();
     cout << "\nExamples:" << endl;
     cout << "  CREATE DATABASE shop" << endl;
     cout << "  USE shop" << endl;
@@ -165,6 +191,43 @@ int main() {
                     }
                 }
             }
+
+            else if (upperQuery == "LIST DATABASES") {
+                listDatabases();
+            }
+            else if (upperQuery.find("DROP DATABASE") == 0) {
+                string dbName = query.substr(13);      // after "DROP DATABASE"
+                dbName = trimString(dbName);
+
+                if (dbName.empty()) {
+                    cout << "Error: Database name is required." << endl;
+                }
+                else if (dbName == "master") {
+                    cout << "Error: Cannot drop system database 'master'." << endl;
+                }
+                else {
+                    string folder = getDatabaseFolder(dbName);
+                    if (!directoryExists(folder)) {
+                        cout << "Error: Database '" << dbName << "' does not exist." << endl;
+                    }
+                    else {
+                        if (currentDatabase == dbName) {
+                            cout << "Switching to 'master' before dropping active database..." << endl;
+                            currentDatabase = "master";
+                            db.loadFromDisk(getDatabaseFile(currentDatabase));
+                        }
+
+                        string cmd = "rmdir /S /Q \"" + folder + "\"";
+                        int ret = system(cmd.c_str());
+                        if (ret == 0) {
+                            cout << "Database '" << dbName << "' dropped successfully." << endl;
+                        }
+                        else {
+                            cout << "Error: Could not drop database (system error)." << endl;
+                        }
+                    }
+                }
+            }
             else if (upperQuery.find("USE ") == 0) {
                 string dbName = query.substr(4);       // after "USE "
                 dbName = trimString(dbName);
@@ -206,6 +269,10 @@ int main() {
             }
             else if (upperQuery.find("DELETE") == 0) {
                 db.deleteFrom(query);
+                db.saveToDisk(getDatabaseFile(currentDatabase));
+            }
+            else if (upperQuery.find("DROP TABLE") == 0) {
+                db.dropTable(query);
                 db.saveToDisk(getDatabaseFile(currentDatabase));
             }
             else if (upperQuery == "HELP") {

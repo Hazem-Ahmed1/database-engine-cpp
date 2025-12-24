@@ -50,9 +50,23 @@ int Table::getPrimaryKeyIndex() const {
     return primaryKeyIndex;
 }
 
+#include <algorithm>
+#include <cctype>
+
+// helper for case insensitive string compare
+bool iequals(const string& a, const string& b)
+{
+    if (a.size() != b.size())
+        return false;
+    for (size_t i = 0; i < a.size(); ++i)
+        if (tolower(a[i]) != tolower(b[i]))
+            return false;
+    return true;
+}
+
 int Table::getColumnIndex(const string& colName) const {
     for (int i = 0; i < (int)columns.size(); i++) {
-        if (columns[i].getName() == colName) {
+        if (iequals(columns[i].getName(), colName)) {
             return i;
         }
     }
