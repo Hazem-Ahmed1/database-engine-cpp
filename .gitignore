@@ -6,7 +6,8 @@
 .vs/
 *.vs/
 *.vsidx
-
+databases/
+Database.b60bc3cd/
 # Build output folders
 Debug/
 debug/

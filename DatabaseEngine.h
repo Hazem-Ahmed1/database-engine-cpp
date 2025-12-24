@@ -25,6 +25,7 @@ public:
     void selectFrom(const string& query);
     void deleteFrom(const string& query);
     void updateTable(const string& query);
+    void dropTable(const string& query);
     void listTables();
 
     void saveToDisk(const string& filename = "database.db") const;
