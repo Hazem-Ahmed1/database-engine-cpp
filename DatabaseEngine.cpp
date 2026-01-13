@@ -8,6 +8,7 @@
 #include <fstream>
 #include <sstream>
 #include <cstdlib>
+#include <algorithm>
 using namespace std;
 
 DatabaseEngine::DatabaseEngine() {
@@ -108,8 +109,11 @@ void DatabaseEngine::insertInto(const string& query) {
             const Column& col = columns[i];
             string value = values[i];
 
-            // NOT NULL
-            if (col.getIsNotNull() && value.empty()) {
+            // NOT NULL and literal NULL check
+            string upperVal = value;
+            transform(upperVal.begin(), upperVal.end(), upperVal.begin(), ::toupper);
+
+            if (col.getIsNotNull() && (value.empty() || upperVal == "NULL")) {
                 cout << "Error: Column '" << col.getName() << "' cannot be NULL" << endl;
                 return;
             }
@@ -168,8 +172,10 @@ void DatabaseEngine::selectFrom(const string& query) {
         string tableName;
         vector<string> columns;
         vector<Condition> conditions;
+        vector<string> groupByColumns;
+        vector<Condition> havingConditions;
 
-        QueryParser::parseSelect(query, tableName, columns, conditions);
+        QueryParser::parseSelect(query, tableName, columns, conditions, groupByColumns, havingConditions);
 
         if (tables.find(tableName) == tables.end()) {
             cout << "Error: Table '" << tableName << "' does not exist!" << endl;
@@ -177,34 +183,143 @@ void DatabaseEngine::selectFrom(const string& query) {
         }
 
         Table* table = tables[tableName];
+        
+        // 1. Filter by WHERE
+        vector<Row> filteredRows;
+        const vector<Row>& allRows = table->getRows();
+        const vector<Column>& tableCols = table->getColumns();
 
-        // No WHERE
         if (conditions.empty()) {
-            if (columns.empty()) {
-                table->displayData();
-            }
-            else {
-                vector<int> colIndices;
-                for (int i = 0; i < (int)columns.size(); i++) {
-                    int idx = table->getColumnIndex(columns[i]);
-                    if (idx == -1) {
-                        cout << "Error: Column '" << columns[i] << "' does not exist!" << endl;
-                        return;
+            filteredRows = allRows;
+        }
+        else {
+            for (int r = 0; r < (int)allRows.size(); r++) {
+                const Row& row = allRows[r];
+                bool matchesAll = true;
+
+                for (int c = 0; c < (int)conditions.size(); c++) {
+                    const Condition& cond = conditions[c];
+                    int colIndex = table->getColumnIndex(cond.columnName);
+                    if (colIndex == -1) continue;
+
+                    string actualValue = row.getValue(colIndex);
+                    DataType colType = tableCols[colIndex].getType();
+
+                    if (!cond.evaluate(actualValue, colType)) {
+                        matchesAll = false;
+                        break;
                     }
-                    colIndices.push_back(idx);
                 }
-                table->displayData(colIndices);
+
+                if (matchesAll) {
+                    filteredRows.push_back(row);
+                }
             }
-            return;
         }
 
-        // With WHERE
+        // 2. Grouping
+        vector<Row> resultRows;
+
+        if (groupByColumns.empty()) {
+            // Apply HAVING as WHERE if no grouping (or skip if strictly aggregates, but here we treat as filter)
+            if (havingConditions.empty()) {
+                resultRows = filteredRows;
+            }
+            else {
+                for (int r = 0; r < (int)filteredRows.size(); r++) {
+                    const Row& row = filteredRows[r];
+                    bool matchesAll = true;
+
+                    for (int c = 0; c < (int)havingConditions.size(); c++) {
+                        const Condition& cond = havingConditions[c];
+                        // Skip aggregate checks here as no group
+                        if (cond.columnName == "COUNT(*)") continue; 
+
+                        int colIndex = table->getColumnIndex(cond.columnName);
+                        if (colIndex != -1) {
+                            string actualValue = row.getValue(colIndex);
+                            DataType colType = tableCols[colIndex].getType();
+                            
+                            if (!cond.evaluate(actualValue, colType)) {
+                                matchesAll = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (matchesAll) resultRows.push_back(row);
+                }
+            }
+        }
+        else {
+            // Validate Group Columns
+            vector<int> groupIndices;
+            for (size_t i = 0; i < groupByColumns.size(); i++) {
+                int idx = table->getColumnIndex(groupByColumns[i]);
+                if (idx == -1) {
+                    cout << "Error: GROUP BY column '" << groupByColumns[i] << "' does not exist!" << endl;
+                    return;
+                }
+                groupIndices.push_back(idx);
+            }
+
+            // Group Rows
+            map<string, vector<Row>> groups;
+            for (size_t i = 0; i < filteredRows.size(); i++) {
+                const Row& row = filteredRows[i];
+                string key = "";
+                for (size_t j = 0; j < groupIndices.size(); j++) {
+                    key += row.getValue(groupIndices[j]);
+                    if (j < groupIndices.size() - 1) key += "|";
+                }
+                groups[key].push_back(row);
+            }
+
+            // Apply HAVING to groups
+            map<string, vector<Row>>::iterator it;
+            for (it = groups.begin(); it != groups.end(); ++it) {
+                vector<Row>& groupRows = it->second;
+                if (groupRows.empty()) continue;
+
+                // Representative row (first one)
+                Row repRow = groupRows[0];
+                bool keepGroup = true;
+
+                for (size_t c = 0; c < havingConditions.size(); c++) {
+                    const Condition& cond = havingConditions[c];
+                    
+                    if (cond.columnName == "COUNT(*)") {
+                        stringstream ss;
+                        ss << groupRows.size();
+                        if (!cond.evaluate(ss.str(), INT)) {
+                            keepGroup = false;
+                            break;
+                        }
+                    }
+                    else {
+                        // Check against representative row
+                        int idx = table->getColumnIndex(cond.columnName);
+                        if (idx != -1) {
+                            string actualValue = repRow.getValue(idx);
+                            DataType colType = tableCols[idx].getType();
+                            if (!cond.evaluate(actualValue, colType)) {
+                                keepGroup = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (keepGroup) {
+                    resultRows.push_back(repRow);
+                }
+            }
+        }
+
+        // 3. Display
         cout << "\nTable: " << tableName << endl;
         cout << "--------------------------------------" << endl;
 
-        const vector<Column>& tableCols = table->getColumns();
         vector<int> displayCols;
-
         if (columns.empty()) {
             for (int i = 0; i < (int)tableCols.size(); i++) {
                 displayCols.push_back(i);
@@ -234,42 +349,20 @@ void DatabaseEngine::selectFrom(const string& query) {
         }
         cout << endl;
 
-        int count = 0;
-        const vector<Row>& rows = table->getRows();
-
-        for (int r = 0; r < (int)rows.size(); r++) {
-            const Row& row = rows[r];
-            bool matchesAll = true;
-
-            for (int c = 0; c < (int)conditions.size(); c++) {
-                const Condition& cond = conditions[c];
-                int colIndex = table->getColumnIndex(cond.columnName);
-                if (colIndex == -1) continue;
-
-                string actualValue = row.getValue(colIndex);
-                DataType colType = tableCols[colIndex].getType();
-
-                if (!cond.evaluate(actualValue, colType)) {
-                    matchesAll = false;
-                    break;
-                }
+        for (int r = 0; r < (int)resultRows.size(); r++) {
+            const Row& row = resultRows[r];
+            for (int c = 0; c < (int)displayCols.size(); c++) {
+                cout << row.getValue(displayCols[c]);
+                if (c < (int)displayCols.size() - 1) cout << " | ";
             }
-
-            if (matchesAll) {
-                for (int i = 0; i < (int)displayCols.size(); i++) {
-                    cout << row.getValue(displayCols[i]);
-                    if (i < (int)displayCols.size() - 1) cout << " | ";
-                }
-                cout << endl;
-                count++;
-            }
+            cout << endl;
         }
 
-        if (count == 0) {
+        if (resultRows.empty()) {
             cout << "No matching rows found." << endl;
         }
 
-        cout << "\nRows returned: " << count << endl;
+        cout << "\nRows returned: " << resultRows.size() << endl;
 
     }
     catch (exception& e) {
@@ -329,6 +422,15 @@ void DatabaseEngine::updateTable(const string& query) {
             }
 
             const Column& col = table->getColumns()[colIndex];
+
+            // NOT NULL and literal NULL check for UPDATE
+            string upperVal = value;
+            transform(upperVal.begin(), upperVal.end(), upperVal.begin(), ::toupper);
+
+            if (col.getIsNotNull() && (value.empty() || upperVal == "NULL")) {
+                cout << "Error: Column '" << col.getName() << "' cannot be NULL" << endl;
+                return;
+            }
 
             if (col.getType() == INT && !isValidInt(value)) {
                 cout << "Error: Invalid INT value for column '" << colName << "'" << endl;

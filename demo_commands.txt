@@ -1,0 +1,81 @@
+-- DDL COMMANDS
+
+CREATE DATABASE company_db;
+
+USE company_db;
+
+CREATE TABLE employees (id INT PRIMARY KEY, name VARCHAR(30) NOT NULL, role VARCHAR(20), salary INT, age INT);
+
+-- --- 1. INSERT DATA (Population) ---
+
+INSERT INTO employees VALUES (101, Sarah, Manager, 9000, 45);
+INSERT INTO employees VALUES (102, Mike, Developer, 6000, 28);
+INSERT INTO employees VALUES (103, Jessica, Designer, 5500, 31);
+INSERT INTO employees VALUES (104, Tom, Developer, 6200, 29);
+INSERT INTO employees VALUES (105, Emma, HR, 4000, 26);
+INSERT INTO employees VALUES (106, David, Intern, 2000, 22);
+INSERT INTO employees VALUES (107, James, CEO, 15000, 52);
+
+-- --- 2. ERROR HANDLING (Robustness) ---
+
+-- Try to insert a row with a missing Name (which is NOT NULL)
+INSERT INTO employees VALUES (108, , Intern, 2000, 23);
+
+-- Try to insert in missing number of cols
+INSERT INTO employees VALUES (107, James, CEO, 15000);
+
+-- Try to insert in extra number of cols
+INSERT INTO employees VALUES (107, James, CEO, 15000, 52, 10000);
+
+-- Try to insert duplicate primary key 
+INSERT INTO employees VALUES (106, David, Intern, 2000, 22);
+
+-- Try to select from a table that doesn't exist
+SELECT * FROM unknown_table;
+
+-- --- 3. QUERIES (Filtering & Analysis) ---
+
+-- View all staff
+SELECT * FROM employees;
+
+-- View Names & Ages
+SELECT name,Age FROM employees;
+
+-- Filter by Salary (High Earners)
+SELECT * FROM employees WHERE salary >= 9000;
+
+-- Filter by Age (Younger than 30)
+SELECT * FROM employees WHERE age < 30;
+
+-- Filter by Role
+SELECT * FROM employees WHERE role = Developer;
+
+-- --- 4. GROUPING & ANALYTICS (Group By / Having) ---
+
+-- List unique roles in the company (Grouping)
+SELECT role FROM employees GROUP BY role;
+
+-- Find roles that have more than 1 employee (Having Count)
+SELECT role FROM employees GROUP BY role HAVING COUNT(*) > 1;
+
+-- Find roles that have exactly 1 employee
+SELECT role FROM employees GROUP BY role HAVING COUNT(*) = 1;
+
+-- --- 5. DATA MODIFICATION ---
+
+-- UPDATE: Give Mike a raise
+UPDATE employees SET salary = 6500 WHERE id = 102;
+SELECT * FROM employees WHERE id = 102;
+
+-- DELETE: Remove Interns (End of internship)
+DELETE FROM employees WHERE role = Intern;
+
+-- Verify Delete
+SELECT * FROM employees;
+
+-- ==========================================
+-- CLEANUP
+-- ==========================================
+
+DROP TABLE employees;
+EXIT
