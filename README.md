@@ -8,8 +8,10 @@ A fully functional **mini DBMS (Database Management System)** built using **Obje
 
 The engine supports these commands:
 - CREATE DATABASE
+- Use Database
 - LIST DATABASES
 - DROP DATABASE
+- Drop Table
 - USE DATABASE
 - CREATE TABLE
 - INSERT INTO
@@ -17,6 +19,8 @@ The engine supports these commands:
 - UPDATE
 - DELETE
 - LIST TABLES
+- Group By
+- Having
 - EXIT
 
 ## 🧱 Supported Data Types
@@ -53,6 +57,7 @@ g++ -std=c++17 main.cpp -o dbms
 
 ## 📝 Example Queries
 
+-  use ITI 
 -  CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR(50) NOT NULL, age INT)
 -  INSERT INTO users VALUES (1, John, 25)
 -  INSERT INTO users VALUES (2, Sarah, 30)
@@ -62,6 +67,8 @@ g++ -std=c++17 main.cpp -o dbms
 -  DELETE FROM users WHERE age < 30 AND name="Sarah"
 -  DELETE * FROM users
 -  LIST TABLES
+-  Drop database ITI
+-  Drop table users
 
 ## 🧩 Project Architecture Overview
 
@@ -75,6 +82,7 @@ DatabaseEngine -> QueryParser -> Table -> (Columns, Rows) -> Condition/Row
 - Constraints handling
 - In-memory storage
 - Error handling
+
 
 
 
