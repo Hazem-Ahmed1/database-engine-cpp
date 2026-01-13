@@ -28,7 +28,9 @@ public:
     static void parseSelect(const string& query,
         string& tableName,
         vector<string>& columns,
-        vector<Condition>& conditions);
+        vector<Condition>& conditions,
+        vector<string>& groupByColumns,
+        vector<Condition>& havingConditions);
 
     static void parseDelete(const string& query,
         string& tableName,

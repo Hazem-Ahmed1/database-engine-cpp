@@ -150,7 +150,9 @@ void QueryParser::parseInsert(const string& query,
 void QueryParser::parseSelect(const string& query,
     string& tableName,
     vector<string>& columns,
-    vector<Condition>& conditions) {
+    vector<Condition>& conditions,
+    vector<string>& groupByColumns,
+    vector<Condition>& havingConditions) {
     string upperQuery = toUpper(query);
 
     // Find FROM
@@ -158,6 +160,11 @@ void QueryParser::parseSelect(const string& query,
     if (fromPos == string::npos) {
         throw runtime_error("SELECT must have FROM clause");
     }
+
+    // Find optional clauses
+    size_t wherePos = upperQuery.find("WHERE", fromPos);
+    size_t groupPos = upperQuery.find("GROUP BY", fromPos);
+    size_t havingPos = upperQuery.find("HAVING", fromPos);
 
     // Extract columns (SELECT ... FROM)
     string colPart = trim(query.substr(6, fromPos - 6)); // after "SELECT"
@@ -175,14 +182,43 @@ void QueryParser::parseSelect(const string& query,
         }
     }
 
-    // Extract table name
-    size_t wherePos = upperQuery.find("WHERE", fromPos);
-    size_t tableEnd = (wherePos != string::npos) ? wherePos : query.length();
-    tableName = trim(query.substr(fromPos + 4, tableEnd - (fromPos + 4)));
+    // Extract table name robustly (first word after FROM)
+    {
+        string rest = query.substr(fromPos + 4);
+        stringstream ss(rest);
+        ss >> tableName;
+        
+        // Remove trailing semicolon if present
+        if (!tableName.empty() && tableName.back() == ';') {
+            tableName.pop_back();
+        }
+    }
 
     // Parse WHERE clause if exists
     if (wherePos != string::npos) {
-        parseWhereClause(query.substr(wherePos + 5), conditions);
+        size_t whereEnd = query.length();
+        if (groupPos != string::npos) whereEnd = groupPos;
+        else if (havingPos != string::npos) whereEnd = havingPos;
+
+        parseWhereClause(query.substr(wherePos + 5, whereEnd - (wherePos + 5)), conditions);
+    }
+
+    // Parse GROUP BY clause if exists
+    if (groupPos != string::npos) {
+        size_t groupEnd = query.length();
+        if (havingPos != string::npos) groupEnd = havingPos;
+
+        string groupPart = trim(query.substr(groupPos + 8, groupEnd - (groupPos + 8)));
+        stringstream ss(groupPart);
+        string col;
+        while (getline(ss, col, ',')) {
+            groupByColumns.push_back(trim(col));
+        }
+    }
+
+    // Parse HAVING clause if exists
+    if (havingPos != string::npos) {
+        parseWhereClause(query.substr(havingPos + 6), havingConditions);
     }
 }
 

@@ -77,32 +77,31 @@ void listDatabases() {
     _findclose(handle);
 }
 
-// ================== HELP TEXT ==================
 
 void printHelp() {
     cout << "\nSupported commands:" << endl;
     cout << "  CREATE DATABASE db_name" << endl;
-    cout << "  LIST DATABASES" << endl;
     cout << "  DROP DATABASE db_name" << endl;
     cout << "  USE db_name" << endl;
-    cout << "  CREATE TABLE table_name (col1 type1 [PRIMARY KEY] [NOT NULL], ...)" << endl;
-    cout << "  INSERT INTO table_name VALUES (val1, val2, ...)" << endl;
-    cout << "  SELECT * FROM table_name [WHERE condition]" << endl;
-    cout << "  SELECT col1, col2 FROM table_name [WHERE condition]" << endl;
-    cout << "  UPDATE table_name SET col1=val1, col2=val2 [WHERE condition]" << endl;
-    cout << "  DELETE FROM table_name" << endl;
-    cout << "  DELETE FROM table_name WHERE condition" << endl;
-    cout << "  DROP TABLE table_name" << endl;
-    cout << "  DROP database db_name" << endl;
     cout << "  LIST DATABASES" << endl;
+    cout << "  " << endl;
+    cout << "  CREATE TABLE table_name (col1 type1 [PRIMARY KEY] [NOT NULL], ...)" << endl;
+    cout << "  DROP TABLE table_name" << endl;
     cout << "  LIST TABLES" << endl;
+    cout << "  " << endl;
+    cout << "  INSERT INTO table_name VALUES (val1, val2, ...)" << endl;
+    cout << "  UPDATE table_name SET col1=val1, ... [WHERE condition]" << endl;
+    cout << "  DELETE FROM table_name [WHERE condition]" << endl;
+    cout << "  " << endl;
+    cout << "  SELECT * FROM table_name [WHERE condition]" << endl;
+    cout << "  SELECT col1, col2 FROM table_name [WHERE condition] [GROUP BY col] [HAVING cond]" << endl;
+    cout << "  " << endl;
     cout << "  HELP" << endl;
     cout << "  EXIT" << endl;
     cout << "\nSupported types: INT, FLOAT, VARCHAR(size)" << endl;
-    cout << "Supported operators in WHERE: =, !=, <, >, <=, >=" << endl;
+    cout << "Supported operators: =, !=, <, >, <=, >=" << endl;
 }
 
-// ================== MAIN ==================
 
 int main() {
     DatabaseEngine db;
@@ -110,7 +109,6 @@ int main() {
     // default database
     string currentDatabase = "master";
 
-    // make sure base folder and master DB folder exist
     createDirectoryIfNotExists(BASE_DB_FOLDER);
     createDirectoryIfNotExists(getDatabaseFolder(currentDatabase));
 
